@@ -41,7 +41,7 @@ jobs:
             --repo scottzockoll/workshop \
             --label "build" \
             --state open \
-            --sort created \
+            --search "sort:created-asc" \
             --json number,title,body \
             --limit 1 \
             | jq '.[0]')
