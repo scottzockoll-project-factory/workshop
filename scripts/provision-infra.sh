@@ -53,9 +53,11 @@ echo "--- Creating Vercel project: $SLUG ---"
 echo '{}' > package.json
 vercel link --yes --project "$SLUG" --token "$VERCEL_TOKEN"
 
-# Set environment variables (remove first to make idempotent)
-vercel env rm DATABASE_URL production --yes --token "$VERCEL_TOKEN" 2>/dev/null || true
-echo "$DATABASE_URL" | vercel env add DATABASE_URL production --token "$VERCEL_TOKEN"
+# Set environment variables for all environments (remove first to make idempotent)
+for ENV in production preview development; do
+  vercel env rm DATABASE_URL "$ENV" --yes --token "$VERCEL_TOKEN" 2>/dev/null || true
+  echo "$DATABASE_URL" | vercel env add DATABASE_URL "$ENV" --token "$VERCEL_TOKEN"
+done
 
 # Set custom domain
 vercel domains add "${SLUG}.scottzockoll.com" --token "$VERCEL_TOKEN" 2>/dev/null || true
