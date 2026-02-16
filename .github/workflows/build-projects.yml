@@ -60,9 +60,22 @@ jobs:
 
           # Parse structured fields from issue body
           # GitHub issue forms render as ### Header\n\nValue sections
-          SLUG=$(echo "$ISSUE_BODY" | awk '/### Subdomain Slug/{getline;getline;print}' | xargs)
-          PROJECT_NAME=$(echo "$ISSUE_BODY" | awk '/### Project Name/{getline;getline;print}' | xargs)
-          FRAMEWORK=$(echo "$ISSUE_BODY" | awk '/### Framework/{getline;getline;print}' | xargs)
+          # Use sed to extract the first non-empty line after each header
+          parse_field() {
+            echo "$ISSUE_BODY" | sed -n "/### $1/,/### /{/### $1/d;/### /d;/^$/d;p;}" | head -1 | xargs
+          }
+
+          PROJECT_NAME=$(parse_field "Project Name")
+          SLUG=$(parse_field "Subdomain Slug")
+          FRAMEWORK=$(parse_field "Framework")
+
+          # Validate slug (lowercase, hyphens, no spaces)
+          if ! echo "$SLUG" | grep -qE '^[a-z0-9][a-z0-9-]*[a-z0-9]$'; then
+            echo "::error::Invalid slug '$SLUG'. Must be lowercase alphanumeric with hyphens only."
+            exit 1
+          fi
+
+          echo "Parsed: PROJECT_NAME=$PROJECT_NAME, SLUG=$SLUG, FRAMEWORK=$FRAMEWORK"
 
           # Multi-line fields: extract between headers
           DESCRIPTION=$(echo "$ISSUE_BODY" | sed -n '/### Project Description/,/### /{/### Project Description/d;/### /d;p}' | sed '/^$/d')
