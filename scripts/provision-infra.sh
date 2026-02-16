@@ -40,7 +40,7 @@ else
     --name "$SLUG" \
     --org-id "$NEON_ORG_ID" \
     --output json)
-  DATABASE_URL=$(echo "$NEON_OUTPUT" | jq -r '.connection_uri')
+  DATABASE_URL=$(echo "$NEON_OUTPUT" | jq -r '.connection_uris[0].connection_uri')
 fi
 echo "Database URL captured (redacted): ${DATABASE_URL:0:30}..."
 
