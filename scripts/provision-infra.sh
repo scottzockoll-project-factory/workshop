@@ -24,6 +24,7 @@ cd "/tmp/$SLUG"
 echo "--- Creating Neon database: $SLUG ---"
 NEON_OUTPUT=$(neonctl projects create \
   --name "$SLUG" \
+  --org-id "$NEON_ORG_ID" \
   --output json)
 
 DATABASE_URL=$(echo "$NEON_OUTPUT" | jq -r '.connection_uri')
