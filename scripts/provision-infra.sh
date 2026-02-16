@@ -47,6 +47,7 @@ echo "Database URL captured (redacted): ${DATABASE_URL:0:30}..."
 # --------------------------------------------------
 # 3. Create Vercel project and set env vars
 # --------------------------------------------------
+set -x
 echo "--- Creating Vercel project: $SLUG ---"
 
 # Determine Vercel framework preset
