@@ -49,9 +49,21 @@ echo "Database URL captured (redacted): ${DATABASE_URL:0:30}..."
 # --------------------------------------------------
 echo "--- Creating Vercel project: $SLUG ---"
 
-# Initialize a minimal project so Vercel can link
-echo '{}' > package.json
-vercel link --yes --project "$SLUG" --token "$VERCEL_TOKEN"
+# Create Vercel project via API (idempotent -- 409 if exists)
+curl -s -X POST "https://api.vercel.com/v10/projects?teamId=$VERCEL_TEAM_ID" \
+  -H "Authorization: Bearer $VERCEL_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "{\"name\":\"$SLUG\"}" || true
+
+# Get project ID
+VERCEL_PROJECT_ID=$(curl -s -H "Authorization: Bearer $VERCEL_TOKEN" \
+  "https://api.vercel.com/v9/projects/$SLUG?teamId=$VERCEL_TEAM_ID" \
+  | jq -r '.id')
+echo "Vercel project ID: $VERCEL_PROJECT_ID"
+
+# Create .vercel link manually
+mkdir -p .vercel
+echo "{\"orgId\":\"$VERCEL_TEAM_ID\",\"projectId\":\"$VERCEL_PROJECT_ID\"}" > .vercel/project.json
 
 # Set environment variables for all environments (remove first to make idempotent)
 for ENV in production preview development; do
