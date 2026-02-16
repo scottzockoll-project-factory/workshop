@@ -1,0 +1,65 @@
+name: Project Idea
+description: Describe a project for the autonomous builder to create
+labels: ["idea"]
+body:
+  - type: input
+    id: project-name
+    attributes:
+      label: Project Name
+      description: A human-readable name for the project
+      placeholder: "My Cool App"
+    validations:
+      required: true
+
+  - type: input
+    id: slug
+    attributes:
+      label: Subdomain Slug
+      description: URL-safe slug (lowercase, hyphens only). Will be deployed to <slug>.scottzockoll.com
+      placeholder: "my-cool-app"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: framework
+    attributes:
+      label: Framework
+      description: Which framework should be used?
+      options:
+        - Next.js (App Router)
+        - Next.js (Pages Router)
+        - Vite + React
+        - Astro
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Project Description
+      description: Describe the app in detail. What does it do? What features should it have? Be as specific as possible -- Claude will use this as the spec.
+      placeholder: |
+        A personal finance tracker that lets you:
+        - Add income and expense transactions
+        - Categorize transactions
+        - View monthly summaries with charts
+        - Set budget goals per category
+    validations:
+      required: true
+
+  - type: textarea
+    id: data-model
+    attributes:
+      label: Data Model
+      description: Describe the database tables/schema. Leave blank if you want Claude to design it.
+      placeholder: |
+        users: id, email, name, created_at
+        transactions: id, user_id, amount, category, description, date
+        budgets: id, user_id, category, monthly_limit
+
+  - type: textarea
+    id: extra-instructions
+    attributes:
+      label: Extra Instructions
+      description: Any additional instructions, design preferences, or constraints.
+      placeholder: "Use a dark theme. Include a landing page. Add seed data for demo purposes."

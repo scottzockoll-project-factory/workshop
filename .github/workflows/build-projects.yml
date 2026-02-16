@@ -1,0 +1,199 @@
+name: Build Projects
+
+on:
+  schedule:
+    # 1 AM, 3 AM, 5 AM UTC (overnight US Central)
+    - cron: "0 1,3,5 * * *"
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout workshop repo
+        uses: actions/checkout@v4
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Claude Code
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Install Neon CLI
+        run: npm install -g neonctl
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel
+
+      - name: Find oldest build-labeled issue
+        id: find-issue
+        env:
+          GH_TOKEN: ${{ secrets.WORKSHOP_PAT }}
+        run: |
+          ISSUE_JSON=$(gh issue list \
+            --repo scottzockoll/workshop \
+            --label "build" \
+            --state open \
+            --sort created \
+            --json number,title,body \
+            --limit 1 \
+            | jq '.[0]')
+
+          if [ "$ISSUE_JSON" = "null" ] || [ -z "$ISSUE_JSON" ]; then
+            echo "No build-labeled issues found."
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          ISSUE_NUMBER=$(echo "$ISSUE_JSON" | jq -r '.number')
+          ISSUE_BODY=$(echo "$ISSUE_JSON" | jq -r '.body')
+
+          echo "found=true" >> "$GITHUB_OUTPUT"
+          echo "issue_number=$ISSUE_NUMBER" >> "$GITHUB_OUTPUT"
+
+          # Parse structured fields from issue body
+          # GitHub issue forms render as ### Header\n\nValue sections
+          SLUG=$(echo "$ISSUE_BODY" | awk '/### Subdomain Slug/{getline;getline;print}' | xargs)
+          PROJECT_NAME=$(echo "$ISSUE_BODY" | awk '/### Project Name/{getline;getline;print}' | xargs)
+          FRAMEWORK=$(echo "$ISSUE_BODY" | awk '/### Framework/{getline;getline;print}' | xargs)
+
+          # Multi-line fields: extract between headers
+          DESCRIPTION=$(echo "$ISSUE_BODY" | sed -n '/### Project Description/,/### /{/### Project Description/d;/### /d;p}' | sed '/^$/d')
+          DATA_MODEL=$(echo "$ISSUE_BODY" | sed -n '/### Data Model/,/### /{/### Data Model/d;/### /d;p}' | sed '/^$/d')
+          EXTRA=$(echo "$ISSUE_BODY" | sed -n '/### Extra Instructions/,/### /{/### Extra Instructions/d;/### /d;p}' | sed '/^$/d')
+
+          # Write to env file for later steps
+          {
+            echo "SLUG=$SLUG"
+            echo "PROJECT_NAME=$PROJECT_NAME"
+            echo "FRAMEWORK=$FRAMEWORK"
+          } >> "$GITHUB_ENV"
+
+          # Multi-line values use delimiter syntax
+          {
+            echo "DESCRIPTION<<EOFVAL"
+            echo "$DESCRIPTION"
+            echo "EOFVAL"
+          } >> "$GITHUB_ENV"
+
+          {
+            echo "DATA_MODEL<<EOFVAL"
+            echo "$DATA_MODEL"
+            echo "EOFVAL"
+          } >> "$GITHUB_ENV"
+
+          {
+            echo "EXTRA_INSTRUCTIONS<<EOFVAL"
+            echo "$EXTRA"
+            echo "EOFVAL"
+          } >> "$GITHUB_ENV"
+
+      - name: Mark issue as building
+        if: steps.find-issue.outputs.found == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.WORKSHOP_PAT }}
+          ISSUE_NUMBER: ${{ steps.find-issue.outputs.issue_number }}
+        run: |
+          gh issue edit "$ISSUE_NUMBER" \
+            --repo scottzockoll/workshop \
+            --remove-label "build" \
+            --add-label "building"
+          gh issue comment "$ISSUE_NUMBER" \
+            --repo scottzockoll/workshop \
+            --body "🔨 Build started! [View workflow run](https://github.com/scottzockoll/workshop/actions/runs/${{ github.run_id }})"
+
+      - name: Provision infrastructure
+        if: steps.find-issue.outputs.found == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.WORKSHOP_PAT }}
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          ROUTE53_HOSTED_ZONE_ID: ${{ secrets.ROUTE53_HOSTED_ZONE_ID }}
+        run: |
+          chmod +x scripts/provision-infra.sh
+          scripts/provision-infra.sh "$SLUG" "$PROJECT_NAME" "$FRAMEWORK"
+
+      - name: Build project with Claude Code
+        if: steps.find-issue.outputs.found == 'true'
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          chmod +x scripts/build-project.sh
+          scripts/build-project.sh "$SLUG" "$PROJECT_NAME" "$FRAMEWORK" "$DESCRIPTION" "$DATA_MODEL" "$EXTRA_INSTRUCTIONS"
+
+      - name: Push code and deploy
+        if: steps.find-issue.outputs.found == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.WORKSHOP_PAT }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          cd "/tmp/$SLUG"
+
+          # Configure git
+          git config user.name "Workshop Bot"
+          git config user.email "bot@scottzockoll.com"
+
+          # Commit and push
+          git add -A
+          git commit -m "Initial build by Claude Code
+
+          Built from scottzockoll/workshop#${{ steps.find-issue.outputs.issue_number }}"
+          git push origin main
+
+          # Trigger Vercel production deploy
+          vercel --prod --yes --token "$VERCEL_TOKEN"
+
+      - name: Report success
+        if: steps.find-issue.outputs.found == 'true' && success()
+        env:
+          GH_TOKEN: ${{ secrets.WORKSHOP_PAT }}
+          ISSUE_NUMBER: ${{ steps.find-issue.outputs.issue_number }}
+        run: |
+          gh issue edit "$ISSUE_NUMBER" \
+            --repo scottzockoll/workshop \
+            --remove-label "building" \
+            --add-label "built"
+          gh issue comment "$ISSUE_NUMBER" \
+            --repo scottzockoll/workshop \
+            --body "$(cat <<EOF
+          ✅ **Build complete!**
+
+          - 🌐 **Live URL**: https://${SLUG}.scottzockoll.com
+          - 📦 **Repo**: https://github.com/scottzockoll/${SLUG}
+          - 🚀 **Vercel Dashboard**: https://vercel.com/scottzockoll/${SLUG}
+          - 🗄️ **Neon Dashboard**: https://console.neon.tech
+
+          Built in workflow run [#${{ github.run_number }}](https://github.com/scottzockoll/workshop/actions/runs/${{ github.run_id }})
+          EOF
+          )"
+          gh issue close "$ISSUE_NUMBER" --repo scottzockoll/workshop
+
+      - name: Report failure
+        if: steps.find-issue.outputs.found == 'true' && failure()
+        env:
+          GH_TOKEN: ${{ secrets.WORKSHOP_PAT }}
+          ISSUE_NUMBER: ${{ steps.find-issue.outputs.issue_number }}
+        run: |
+          gh issue edit "$ISSUE_NUMBER" \
+            --repo scottzockoll/workshop \
+            --remove-label "building" \
+            --add-label "failed"
+          gh issue comment "$ISSUE_NUMBER" \
+            --repo scottzockoll/workshop \
+            --body "$(cat <<EOF
+          ❌ **Build failed.**
+
+          See the [workflow logs](https://github.com/scottzockoll/workshop/actions/runs/${{ github.run_id }}) for details.
+
+          To retry, remove the \`failed\` label and add \`build\`.
+          EOF
+          )"
