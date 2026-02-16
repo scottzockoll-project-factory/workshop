@@ -13,12 +13,10 @@ echo "=== Provisioning infrastructure for: $SLUG ==="
 echo "--- Creating GitHub repo: scottzockoll/$SLUG ---"
 gh repo create "scottzockoll/$SLUG" \
   --public \
-  --description "$PROJECT_NAME - built by Workshop" \
-  --clone \
-  -- "/tmp/$SLUG"
+  --description "$PROJECT_NAME - built by Workshop"
 
+git clone "https://github.com/scottzockoll/$SLUG.git" "/tmp/$SLUG"
 cd "/tmp/$SLUG"
-git checkout -b main 2>/dev/null || true
 
 # --------------------------------------------------
 # 2. Create Neon database
