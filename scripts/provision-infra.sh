@@ -79,14 +79,27 @@ echo "Vercel project ID: $VERCEL_PROJECT_ID"
 mkdir -p .vercel
 echo "{\"orgId\":\"$VERCEL_TEAM_ID\",\"projectId\":\"$VERCEL_PROJECT_ID\"}" > .vercel/project.json
 
-# Set environment variables for all environments (remove first to make idempotent)
-for ENV in production preview development; do
-  vercel env rm DATABASE_URL "$ENV" --yes --token "$VERCEL_TOKEN" 2>/dev/null || true
-  echo "$DATABASE_URL" | vercel env add DATABASE_URL "$ENV" --token "$VERCEL_TOKEN"
-done
+# Set environment variables via API (remove first to make idempotent)
+# Get existing env var ID if it exists
+EXISTING_ENV_ID=$(curl -s -H "Authorization: Bearer $VERCEL_TOKEN" \
+  "https://api.vercel.com/v9/projects/$SLUG/env?teamId=$VERCEL_TEAM_ID" \
+  | jq -r '.envs[] | select(.key == "DATABASE_URL") | .id' | head -1)
 
-# Set custom domain
-vercel domains add "${SLUG}.scottzockoll.com" --token "$VERCEL_TOKEN" 2>/dev/null || true
+if [ -n "$EXISTING_ENV_ID" ]; then
+  curl -s -X DELETE "https://api.vercel.com/v9/projects/$SLUG/env/$EXISTING_ENV_ID?teamId=$VERCEL_TEAM_ID" \
+    -H "Authorization: Bearer $VERCEL_TOKEN" > /dev/null
+fi
+
+curl -s -X POST "https://api.vercel.com/v10/projects/$SLUG/env?teamId=$VERCEL_TEAM_ID" \
+  -H "Authorization: Bearer $VERCEL_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "{\"key\":\"DATABASE_URL\",\"value\":\"$DATABASE_URL\",\"type\":\"encrypted\",\"target\":[\"production\",\"preview\",\"development\"]}" > /dev/null
+
+# Set custom domain via API
+curl -s -X POST "https://api.vercel.com/v10/projects/$SLUG/domains?teamId=$VERCEL_TEAM_ID" \
+  -H "Authorization: Bearer $VERCEL_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "{\"name\":\"${SLUG}.scottzockoll.com\"}" > /dev/null 2>&1 || true
 
 # --------------------------------------------------
 # 4. Create Route53 DNS record (UPSERT is already idempotent)
