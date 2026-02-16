@@ -164,6 +164,12 @@ jobs:
           Built from scottzockoll/workshop#${{ steps.find-issue.outputs.issue_number }}"
           git push origin main
 
+      - name: Push database schema
+        if: steps.find-issue.outputs.found == 'true'
+        run: |
+          cd "/tmp/$SLUG"
+          npx drizzle-kit push 2>&1 || echo "No drizzle schema to push (skipping)"
+
       - name: Deploy to Vercel
         if: steps.find-issue.outputs.found == 'true'
         env:

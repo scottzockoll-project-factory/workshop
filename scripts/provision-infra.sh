@@ -106,6 +106,9 @@ aws route53 change-resource-record-sets \
     }]
   }"
 
+# Export DATABASE_URL for later steps
+echo "DATABASE_URL=$DATABASE_URL" >> "$GITHUB_ENV"
+
 echo "=== Infrastructure provisioned for $SLUG ==="
 echo "  Repo:     https://github.com/scottzockoll/$SLUG"
 echo "  DB:       Neon project '$SLUG'"
