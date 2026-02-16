@@ -144,11 +144,10 @@ jobs:
           chmod +x scripts/build-project.sh
           scripts/build-project.sh "$SLUG" "$PROJECT_NAME" "$FRAMEWORK" "$DESCRIPTION" "$DATA_MODEL" "$EXTRA_INSTRUCTIONS"
 
-      - name: Push code and deploy
+      - name: Push code to GitHub
         if: steps.find-issue.outputs.found == 'true'
         env:
           GH_TOKEN: ${{ secrets.WORKSHOP_PAT }}
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
           cd "/tmp/$SLUG"
 
@@ -164,7 +163,12 @@ jobs:
           Built from scottzockoll/workshop#${{ steps.find-issue.outputs.issue_number }}"
           git push origin main
 
-          # Trigger Vercel production deploy
+      - name: Deploy to Vercel
+        if: steps.find-issue.outputs.found == 'true'
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          cd "/tmp/$SLUG"
           vercel --prod --yes --token "$VERCEL_TOKEN"
 
       - name: Report success
