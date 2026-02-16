@@ -22,7 +22,7 @@ fi
 if [ -d "/tmp/$SLUG" ]; then
   rm -rf "/tmp/$SLUG"
 fi
-git clone "https://github.com/scottzockoll/$SLUG.git" "/tmp/$SLUG"
+git clone "https://x-access-token:${GH_TOKEN}@github.com/scottzockoll/$SLUG.git" "/tmp/$SLUG"
 cd "/tmp/$SLUG"
 
 # --------------------------------------------------

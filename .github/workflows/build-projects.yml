@@ -152,9 +152,10 @@ jobs:
         run: |
           cd "/tmp/$SLUG"
 
-          # Configure git
+          # Configure git with PAT for push auth
           git config user.name "Workshop Bot"
           git config user.email "bot@scottzockoll.com"
+          git remote set-url origin "https://x-access-token:${GH_TOKEN}@github.com/scottzockoll/${SLUG}.git"
 
           # Commit and push
           git add -A
