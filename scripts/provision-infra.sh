@@ -49,11 +49,25 @@ echo "Database URL captured (redacted): ${DATABASE_URL:0:30}..."
 # --------------------------------------------------
 echo "--- Creating Vercel project: $SLUG ---"
 
-# Create Vercel project via API (idempotent -- 409 if exists)
+# Determine Vercel framework preset
+case "$FRAMEWORK" in
+  "Next.js (App Router)"|"Next.js (Pages Router)") VERCEL_FRAMEWORK="nextjs" ;;
+  "Vite + React") VERCEL_FRAMEWORK="vite" ;;
+  "Astro") VERCEL_FRAMEWORK="astro" ;;
+  *) VERCEL_FRAMEWORK="nextjs" ;;
+esac
+
+# Create Vercel project via API with framework (idempotent -- 409 if exists)
 curl -s -X POST "https://api.vercel.com/v10/projects?teamId=$VERCEL_TEAM_ID" \
   -H "Authorization: Bearer $VERCEL_TOKEN" \
   -H "Content-Type: application/json" \
-  -d "{\"name\":\"$SLUG\"}" || true
+  -d "{\"name\":\"$SLUG\",\"framework\":\"$VERCEL_FRAMEWORK\"}" || true
+
+# Ensure framework is set (in case project already existed)
+curl -s -X PATCH "https://api.vercel.com/v9/projects/$SLUG?teamId=$VERCEL_TEAM_ID" \
+  -H "Authorization: Bearer $VERCEL_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d "{\"framework\":\"$VERCEL_FRAMEWORK\"}" > /dev/null
 
 # Get project ID
 VERCEL_PROJECT_ID=$(curl -s -H "Authorization: Bearer $VERCEL_TOKEN" \
