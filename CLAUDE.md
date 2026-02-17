@@ -1,55 +1,61 @@
-# Workshop - Autonomous Project Factory
+# Workshop - Service Registry & Project Scaffolder
 
-This repo contains the infrastructure for autonomously building and deploying web projects using Claude Code.
+This repo contains reusable **services** (postgres, frontend, etc.) and a scaffolder script that creates new GitHub repos with the selected services attached.
 
-## How It Works
+## Creating a New Project
 
-GitHub Issues describe project ideas. A scheduled GitHub Actions workflow picks up issues labeled `build`, provisions infrastructure (GitHub repo, Neon Postgres, Vercel, DNS), then uses Claude Code to write the entire application.
+Run the scaffolder with the project name and desired services:
 
-## For Claude Code (when building projects)
-
-When you are invoked by `build-project.sh` to build a new application, follow these rules:
-
-### Tech Stack
-- **Language**: TypeScript (strict mode)
-- **ORM**: Drizzle ORM with PostgreSQL (Neon). The `DATABASE_URL` environment variable is already set.
-- **Styling**: Tailwind CSS v4
-- **UI Components**: shadcn/ui
-- **Framework**: As specified in the project spec (usually Next.js App Router)
-
-### Code Quality
-- Write production-quality code. No placeholder comments, no TODOs, no "implement this later".
-- Implement ALL features described in the project spec. Every single one.
-- Handle errors gracefully -- show user-friendly error messages, not raw stack traces.
-- Use TypeScript strict mode. No `any` types unless absolutely necessary.
-- Use server actions or API routes for data mutations, never client-side direct DB access.
-
-### Database
-- Define schema in `src/db/schema.ts` using Drizzle ORM.
-- Create a db client in `src/db/index.ts` that reads `DATABASE_URL` from `process.env`.
-- Use `drizzle-kit push` to apply schema (not migrations, for simplicity).
-- Include seed data when it makes sense for the app.
-
-### Secrets
-- NEVER hardcode secrets, API keys, or database URLs.
-- Always read from environment variables.
-
-### Build Verification
-- The app MUST pass `npm run build` with zero errors.
-- If the build fails, fix the errors and try again.
-
-### Project Structure (Next.js App Router)
+```bash
+scripts/create-project.sh <project-name> <service1> [service2] ...
 ```
-src/
-  app/
-    layout.tsx
-    page.tsx
-    globals.css
-  components/
-    ui/          # shadcn/ui components
-  db/
-    schema.ts
-    index.ts
-  lib/
-    utils.ts
+
+Example:
+```bash
+scripts/create-project.sh my-app postgres frontend
+```
+
+This will:
+1. Create GitHub repo `scottzockoll/<project-name>`
+2. Copy service files (provision scripts, code patterns) into the new repo
+3. Generate a `deploy.yml` workflow, `services.json`, and `CLAUDE.md`
+4. Install dependencies, commit, and push
+
+After creation, clone the repo and build with Claude locally. On push to main, the deploy workflow provisions infrastructure and deploys.
+
+## Available Services
+
+### postgres
+Neon Postgres database with Drizzle ORM. Provides:
+- `src/db/index.ts` — Drizzle client
+- `src/db/schema.ts` — Base schema
+- `drizzle.config.ts` — Drizzle Kit config
+- `scripts/provision-postgres.sh` — Creates Neon project, sets DATABASE_URL on Vercel
+
+### frontend
+Vercel frontend hosting with custom domain. Provides:
+- `scripts/provision-frontend.sh` — Creates Vercel project, sets up DNS at `<slug>.scottzockoll.com`
+
+## Adding a New Service
+
+1. Create `services/<name>/service.json` with metadata (dependencies, secrets, docs, etc.)
+2. Create `services/<name>/files/` with files to copy into new projects
+3. The scaffolder will automatically pick it up
+
+## Repo Structure
+
+```
+workshop/
+  services/
+    postgres/
+      service.json
+      files/          # Copied into new projects
+    frontend/
+      service.json
+      files/
+  scripts/
+    create-project.sh # The scaffolder
+  templates/
+    deploy.yml.tmpl   # Deploy workflow template
+    CLAUDE.md.tmpl    # Project CLAUDE.md template
 ```

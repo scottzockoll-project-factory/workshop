@@ -1,0 +1,17 @@
+{
+  "name": "postgres",
+  "description": "Neon Postgres database with Drizzle ORM",
+  "dependencies": ["drizzle-orm", "@neondatabase/serverless"],
+  "devDependencies": ["drizzle-kit"],
+  "envVars": ["DATABASE_URL"],
+  "provisionScript": "scripts/provision-postgres.sh",
+  "deploySteps": [
+    "npx drizzle-kit push"
+  ],
+  "secrets": ["NEON_API_KEY", "NEON_ORG_ID", "VERCEL_TOKEN", "VERCEL_TEAM_ID"],
+  "docs": {
+    "usage": "Import `db` from `@/db`. Define schema in `src/db/schema.ts`. Use Drizzle query API.",
+    "schema": "Use serial('id').primaryKey(), include createdAt/updatedAt timestamps.",
+    "imports": "import { db } from '@/db'; import { myTable } from '@/db/schema';"
+  }
+}

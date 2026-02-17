@@ -1,0 +1,16 @@
+{
+  "name": "frontend",
+  "description": "Vercel frontend hosting with custom domain and DNS",
+  "dependencies": [],
+  "devDependencies": [],
+  "envVars": [],
+  "provisionScript": "scripts/provision-frontend.sh",
+  "deploySteps": [
+    "vercel --prod --yes --token $VERCEL_TOKEN"
+  ],
+  "secrets": ["VERCEL_TOKEN", "VERCEL_TEAM_ID", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "ROUTE53_HOSTED_ZONE_ID"],
+  "docs": {
+    "usage": "Your app is deployed to Vercel on every push to main. Custom domain: <slug>.scottzockoll.com",
+    "framework": "Vercel auto-detects your framework (Next.js, Vite, Astro, etc)."
+  }
+}
