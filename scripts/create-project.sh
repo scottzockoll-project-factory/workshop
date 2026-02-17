@@ -210,7 +210,17 @@ if [ ${#ALL_DEV_DEPS[@]} -gt 0 ]; then
 fi
 
 # --------------------------------------------------
-# 8. Commit and push
+# 8. Symlink workshop skills into project
+# --------------------------------------------------
+echo "--- Linking workshop skills ---"
+mkdir -p "$PROJECT_DIR/.claude/skills"
+for skill_dir in "$WORKSHOP_DIR"/.claude/skills/*/; do
+  skill_name=$(basename "$skill_dir")
+  ln -sfn "$skill_dir" "$PROJECT_DIR/.claude/skills/$skill_name"
+done
+
+# --------------------------------------------------
+# 9. Commit and push
 # --------------------------------------------------
 echo "--- Committing and pushing ---"
 cd "$PROJECT_DIR"
