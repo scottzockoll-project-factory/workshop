@@ -16,7 +16,7 @@ scripts/create-project.sh my-app postgres frontend
 ```
 
 This will:
-1. Create GitHub repo `scottzockoll/<project-name>`
+1. Create GitHub repo `scottzockoll-project-factory/<project-name>`
 2. Copy service files (provision scripts, code patterns) into the new repo
 3. Generate a `deploy.yml` workflow, `services.json`, and `CLAUDE.md`
 4. Install dependencies, commit, and push

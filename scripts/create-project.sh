@@ -21,7 +21,7 @@ if [ ${#SERVICES[@]} -eq 0 ]; then
 fi
 
 PROJECT_DIR="/tmp/$PROJECT_NAME"
-GITHUB_OWNER="scottzockoll"
+GITHUB_OWNER="scottzockoll-project-factory"
 
 echo "=== Creating project: $PROJECT_NAME ==="
 echo "Services: ${SERVICES[*]}"
@@ -94,6 +94,17 @@ done
 # Make provision scripts executable
 chmod +x "$PROJECT_DIR"/scripts/*.sh 2>/dev/null || true
 
+# Generate .gitignore
+cat > "$PROJECT_DIR/.gitignore" << 'GITIGNORE'
+node_modules/
+.next/
+.env
+.env.local
+.vercel
+*.tsbuildinfo
+next-env.d.ts
+GITIGNORE
+
 # --------------------------------------------------
 # 4. Generate services.json
 # --------------------------------------------------
@@ -137,7 +148,7 @@ for svc in "${SERVICES[@]}"; do
     DEPLOY_ENV=""
     if echo "$step" | grep -q "drizzle-kit"; then
       DEPLOY_ENV="
-          DATABASE_URL: \${{ secrets.DATABASE_URL }}"
+          DATABASE_URL: \${{ env.DATABASE_URL }}"
     fi
     if echo "$step" | grep -q "vercel"; then
       DEPLOY_ENV="
@@ -199,30 +210,7 @@ if [ ${#ALL_DEV_DEPS[@]} -gt 0 ]; then
 fi
 
 # --------------------------------------------------
-# 8. Copy secrets from workshop repo to new repo
-# --------------------------------------------------
-echo "--- Copying secrets to $GITHUB_OWNER/$PROJECT_NAME ---"
-
-# Collect all unique secrets needed across services
-declare -A NEEDED_SECRETS
-for svc in "${SERVICES[@]}"; do
-  SVC_JSON="$WORKSHOP_DIR/services/$svc/service.json"
-  while IFS= read -r secret; do
-    NEEDED_SECRETS["$secret"]=1
-  done < <(jq -r '.secrets[]' "$SVC_JSON" 2>/dev/null || true)
-done
-
-for secret in "${!NEEDED_SECRETS[@]}"; do
-  echo "  Copying secret: $secret"
-  # Get secret value from workshop repo and set on new repo
-  gh secret set "$secret" \
-    --repo "$GITHUB_OWNER/$PROJECT_NAME" \
-    --body "$(gh secret list --repo "$GITHUB_OWNER/workshop" --json name | jq -r ".[] | select(.name == \"$secret\") | .name" > /dev/null && echo "PLACEHOLDER")" 2>/dev/null || \
-    echo "  Warning: Could not copy $secret (set it manually on the new repo)"
-done
-
-# --------------------------------------------------
-# 9. Commit and push
+# 8. Commit and push
 # --------------------------------------------------
 echo "--- Committing and pushing ---"
 cd "$PROJECT_DIR"

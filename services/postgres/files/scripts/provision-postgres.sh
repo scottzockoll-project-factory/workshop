@@ -36,7 +36,7 @@ echo "--- Setting DATABASE_URL on Vercel ---"
 # Remove existing env var if present (makes this idempotent)
 EXISTING_ENV_ID=$(curl -s -H "Authorization: Bearer $VERCEL_TOKEN" \
   "https://api.vercel.com/v9/projects/$SLUG/env?teamId=$VERCEL_TEAM_ID" \
-  | jq -r '.envs[] | select(.key == "DATABASE_URL") | .id' | head -1)
+  | jq -r '.envs[]? | select(.key == "DATABASE_URL") | .id' | head -1)
 
 if [ -n "$EXISTING_ENV_ID" ]; then
   curl -s -X DELETE "https://api.vercel.com/v9/projects/$SLUG/env/$EXISTING_ENV_ID?teamId=$VERCEL_TEAM_ID" \
