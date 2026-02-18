@@ -1,16 +1,24 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Usage: create-project.sh <project-name> <service1> [service2] ...
-# Example: create-project.sh my-app postgres frontend
+# Usage: create-project.sh <project-name> [--emails "a@x.com,b@x.com"] <service1> [service2] ...
+# Example: create-project.sh my-app --emails "scott@x.com" postgres frontend auth
 
 WORKSHOP_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 PROJECT_NAME="$1"
 shift
+
+# Parse --emails flag
+ALLOWED_EMAILS=""
+if [ "${1:-}" = "--emails" ]; then
+  ALLOWED_EMAILS="$2"
+  shift 2
+fi
+
 SERVICES=("$@")
 
 if [ ${#SERVICES[@]} -eq 0 ]; then
-  echo "Usage: $0 <project-name> <service1> [service2] ..."
+  echo "Usage: $0 <project-name> [--emails \"a@x.com,b@x.com\"] <service1> [service2] ..."
   echo "Available services:"
   for dir in "$WORKSHOP_DIR"/services/*/; do
     svc=$(basename "$dir")
@@ -19,6 +27,15 @@ if [ ${#SERVICES[@]} -eq 0 ]; then
   done
   exit 1
 fi
+
+# Require --emails when auth service is selected
+for svc in "${SERVICES[@]}"; do
+  if [ "$svc" = "auth" ] && [ -z "$ALLOWED_EMAILS" ]; then
+    echo "Error: --emails flag is required when using the auth service."
+    echo "Usage: $0 <project-name> --emails \"a@x.com,b@x.com\" auth [other-services...]"
+    exit 1
+  fi
+done
 
 PROJECT_DIR="/tmp/$PROJECT_NAME"
 GITHUB_OWNER="scottzockoll-project-factory"
@@ -49,6 +66,12 @@ else
   gh repo create "$GITHUB_OWNER/$PROJECT_NAME" \
     --public \
     --description "$PROJECT_NAME - built with Workshop"
+fi
+
+# Set repo-level ALLOWED_EMAILS secret if provided
+if [ -n "$ALLOWED_EMAILS" ]; then
+  echo "--- Setting ALLOWED_EMAILS repo secret ---"
+  gh secret set ALLOWED_EMAILS --repo "$GITHUB_OWNER/$PROJECT_NAME" --body "$ALLOWED_EMAILS"
 fi
 
 # Clone into temp directory

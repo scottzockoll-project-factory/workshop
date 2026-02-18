@@ -1,0 +1,18 @@
+{
+  "name": "auth",
+  "description": "JWT auth with email whitelist, session management, and cross-subdomain SSO",
+  "dependencies": ["jose", "resend"],
+  "devDependencies": [],
+  "envVars": ["JWT_SECRET", "ALLOWED_EMAILS", "RESEND_API_KEY", "ADMIN_EMAIL"],
+  "provisionScript": "scripts/provision-auth.sh",
+  "deploySteps": [],
+  "secrets": ["JWT_SECRET", "RESEND_API_KEY", "VERCEL_TOKEN", "VERCEL_TEAM_ID", "ALLOWED_EMAILS", "ADMIN_EMAIL"],
+  "requires": ["postgres"],
+  "docs": {
+    "usage": "Auth is enforced via Next.js middleware. Users log in with email magic links. Only emails in ALLOWED_EMAILS can access the app.",
+    "whitelist": "Set ALLOWED_EMAILS as comma-separated list. ADMIN_EMAIL receives login notifications.",
+    "sessions": "Sessions last 90 days (sliding window). Revoke by deleting the row in Neon console.",
+    "sso": "JWT cookie is set on .scottzockoll.com — all subdomain apps share auth automatically.",
+    "imports": "import { requireAuth } from '@/lib/auth'; // in API routes/server actions: const user = await requireAuth();"
+  }
+}
