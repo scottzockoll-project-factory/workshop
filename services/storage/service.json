@@ -1,0 +1,15 @@
+{
+  "name": "storage",
+  "description": "AWS S3 bucket for file/photo storage with presigned URL upload support and optional auth gating",
+  "dependencies": ["@aws-sdk/client-s3", "@aws-sdk/s3-request-presigner"],
+  "devDependencies": [],
+  "envVars": ["S3_BUCKET_NAME", "S3_REGION", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "STORAGE_REQUIRE_AUTH"],
+  "provisionScript": "scripts/provision-storage.sh",
+  "deploySteps": [],
+  "secrets": ["AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "VERCEL_TOKEN", "VERCEL_TEAM_ID"],
+  "docs": {
+    "usage": "Call POST /api/upload with { filename, contentType } to get a presigned PUT URL. PUT to S3 directly from browser. Store the returned key. Reference files as <img src=\"/api/storage/${key}\"> — never direct S3 URLs.",
+    "auth": "Set STORAGE_REQUIRE_AUTH=true to gate photo access behind auth (requires JWT_SECRET from auth service). Set to false for public access.",
+    "imports": "import { generatePresignedPutUrl, generatePresignedGetUrl } from '@/lib/storage';"
+  }
+}
