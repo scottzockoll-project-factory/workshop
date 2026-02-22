@@ -3,8 +3,6 @@ import { SignJWT } from "jose";
 import { Resend } from "resend";
 import { isWhitelisted } from "@/lib/auth";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 export async function POST(request: NextRequest) {
   const { email } = await request.json();
 
@@ -31,6 +29,7 @@ export async function POST(request: NextRequest) {
   const baseUrl = request.nextUrl.origin;
   const magicLink = `${baseUrl}/api/auth/verify?token=${magicToken}`;
 
+  const resend = new Resend(process.env.RESEND_API_KEY);
   await resend.emails.send({
     from: "noreply@auth.scottzockoll.com",
     to: normalizedEmail,

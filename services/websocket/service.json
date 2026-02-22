@@ -1,0 +1,17 @@
+{
+  "name": "websocket",
+  "description": "Shared WebSocket server for real-time communication. Room-based messaging with JWT token auth.",
+  "dependencies": [],
+  "devDependencies": [],
+  "envVars": ["NEXT_PUBLIC_WS_URL"],
+  "serverEnvVars": ["WS_API_KEY"],
+  "provisionScript": null,
+  "deploySteps": [],
+  "secrets": ["WS_API_KEY"],
+  "docs": {
+    "usage": "Import `createWSClient` from `@/lib/ws`. Call `createWSClient('room-name')` to connect.",
+    "auth": "The client fetches a short-lived JWT from `/api/ws-token` (requires user auth). WS_API_KEY is server-side only.",
+    "rooms": "Room names can be namespaced with colons: `chess:lobby`, `chess:game-123`.",
+    "imports": "import { createWSClient } from '@/lib/ws';"
+  }
+}

@@ -3,8 +3,6 @@ import { jwtVerify } from "jose";
 import { Resend } from "resend";
 import { createSession, setAuthCookie, isWhitelisted } from "@/lib/auth";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 export async function GET(request: NextRequest) {
   const token = request.nextUrl.searchParams.get("token");
 
@@ -37,6 +35,7 @@ export async function GET(request: NextRequest) {
         request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
         "Unknown";
 
+      const resend = new Resend(process.env.RESEND_API_KEY);
       await resend.emails.send({
         from: "noreply@auth.scottzockoll.com",
         to: adminEmail,
