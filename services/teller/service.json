@@ -1,0 +1,17 @@
+{
+  "name": "teller",
+  "description": "Read-only Teller integration for transaction and balance data via mTLS client certificates",
+  "dependencies": [],
+  "devDependencies": [],
+  "envVars": ["TELLER_CERT", "TELLER_PRIVATE_KEY", "NEXT_PUBLIC_TELLER_APPLICATION_ID", "NEXT_PUBLIC_TELLER_ENV"],
+  "provisionScript": "scripts/provision-teller.sh",
+  "deploySteps": [],
+  "secrets": ["TELLER_CERT", "TELLER_PRIVATE_KEY", "NEXT_PUBLIC_TELLER_APPLICATION_ID", "VERCEL_TOKEN", "VERCEL_TEAM_ID"],
+  "docs": {
+    "usage": "Uses Teller Connect (CDN script) for the bank linking widget. API calls use mTLS with client certificates stored as base64 env vars.",
+    "security": "Access tokens are stored server-side only. The Teller API client uses mTLS — TELLER_CERT and TELLER_PRIVATE_KEY must be base64-encoded versions of your certificate.pem and private_key.pem from the Teller dashboard.",
+    "flow": "1. Frontend loads Teller Connect script from CDN. 2. User connects bank. 3. POST /api/teller/enroll — saves access token. 4. POST /api/teller/sync — fetches all transactions and balances.",
+    "env": "NEXT_PUBLIC_TELLER_ENV should be 'sandbox' for development or 'development'/'production' for live data. Get certificates from Teller dashboard under API Keys.",
+    "imports": "import { getAccounts, getTransactions, getBalance } from '@/lib/teller';"
+  }
+}
