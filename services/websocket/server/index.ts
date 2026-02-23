@@ -89,7 +89,16 @@ server.on("upgrade", (req: IncomingMessage, socket, head) => {
   });
 });
 
+let connCounter = 0;
+
+function log(connId: number, ...args: unknown[]) {
+  console.log(`[${new Date().toISOString()}] [conn:${connId}]`, ...args);
+}
+
 wss.on("connection", (ws: WebSocket) => {
+  const connId = ++connCounter;
+  log(connId, "connected");
+
   let isAlive = true;
 
   ws.on("pong", () => {
@@ -98,6 +107,7 @@ wss.on("connection", (ws: WebSocket) => {
 
   const pingTimer = setInterval(() => {
     if (!isAlive) {
+      log(connId, "no pong — terminating");
       ws.terminate();
       return;
     }
@@ -110,47 +120,58 @@ wss.on("connection", (ws: WebSocket) => {
     try {
       msg = JSON.parse(raw.toString());
     } catch {
+      log(connId, "invalid JSON");
       ws.send(JSON.stringify({ event: "error", data: "Invalid JSON" }));
       return;
     }
 
     const { room, event, data } = msg;
     if (!event) {
+      log(connId, "missing event field");
       ws.send(JSON.stringify({ event: "error", data: "Missing event field" }));
       return;
     }
 
     if (event === "join") {
       if (!room) {
+        log(connId, "join: missing room field");
         ws.send(JSON.stringify({ event: "error", data: "Missing room field" }));
         return;
       }
       addToRoom(ws, room);
+      const roomSize = rooms.get(room)?.size ?? 0;
+      log(connId, `join room="${room}" size=${roomSize}`);
       ws.send(JSON.stringify({ event: "joined", data: { room } }));
       return;
     }
 
     if (event === "leave") {
       if (!room) {
+        log(connId, "leave: missing room field");
         ws.send(JSON.stringify({ event: "error", data: "Missing room field" }));
         return;
       }
       removeFromRoom(ws, room);
+      log(connId, `leave room="${room}"`);
       ws.send(JSON.stringify({ event: "left", data: { room } }));
       return;
     }
 
     if (!room) {
+      log(connId, `event="${event}" missing room field`);
       ws.send(JSON.stringify({ event: "error", data: "Missing room field" }));
       return;
     }
 
+    const recipients = (rooms.get(room)?.size ?? 1) - 1;
+    log(connId, `broadcast event="${event}" room="${room}" recipients=${recipients} data=${JSON.stringify(data)}`);
     broadcast(ws, room, event, data);
   });
 
-  ws.on("close", () => {
+  ws.on("close", (code, reason) => {
     clearInterval(pingTimer);
     removeFromAllRooms(ws);
+    log(connId, `closed code=${code} reason=${reason.toString() || "(none)"}`);
   });
 });
 
