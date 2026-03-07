@@ -13,14 +13,15 @@ echo "=== Provisioning Postgres for: $SLUG ==="
 # 1. Create Neon database (skip if exists)
 # --------------------------------------------------
 echo "--- Creating Neon database: $SLUG ---"
-EXISTING_PROJECT=$(neonctl projects list --org-id "$NEON_ORG_ID" --output json \
+EXISTING_PROJECT=$(neonctl projects list --api-key "$NEON_API_KEY" --org-id "$NEON_ORG_ID" --output json \
   | jq -r ".[] | select(.name == \"$SLUG\") | .id" 2>/dev/null || true)
 
 if [ -n "$EXISTING_PROJECT" ]; then
   echo "Neon project '$SLUG' already exists (id: $EXISTING_PROJECT), fetching connection string."
-  DATABASE_URL=$(neonctl connection-string --project-id "$EXISTING_PROJECT" --org-id "$NEON_ORG_ID")
+  DATABASE_URL=$(neonctl connection-string --api-key "$NEON_API_KEY" --project-id "$EXISTING_PROJECT" --org-id "$NEON_ORG_ID")
 else
   NEON_OUTPUT=$(neonctl projects create \
+    --api-key "$NEON_API_KEY" \
     --name "$SLUG" \
     --org-id "$NEON_ORG_ID" \
     --output json)
