@@ -16,7 +16,7 @@ echo "--- Creating Neon database: $SLUG ---"
 
 EXISTING_PROJECT_ID=$(curl -s \
   -H "Authorization: Bearer $NEON_API_KEY" \
-  "$NEON_API/projects?limit=100" \
+  "$NEON_API/projects?org_id=$NEON_ORG_ID&limit=100" \
   | jq -r ".projects[]? | select(.name == \"$SLUG\") | .id" | head -1 || true)
 
 if [ -n "$EXISTING_PROJECT_ID" ]; then
@@ -27,7 +27,7 @@ else
   PROJECT_ID=$(curl -s -X POST "$NEON_API/projects" \
     -H "Authorization: Bearer $NEON_API_KEY" \
     -H "Content-Type: application/json" \
-    -d "{\"project\":{\"name\":\"$SLUG\"}}" \
+    -d "{\"project\":{\"name\":\"$SLUG\",\"org_id\":\"$NEON_ORG_ID\"}}" \
     | jq -r '.project.id')
   echo "Created Neon project: $PROJECT_ID"
 fi
