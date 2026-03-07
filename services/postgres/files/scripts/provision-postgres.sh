@@ -3,38 +3,55 @@ set -euo pipefail
 
 # Provisions a Neon Postgres database for the project.
 # Required env vars: NEON_API_KEY, NEON_ORG_ID, VERCEL_TOKEN, VERCEL_TEAM_ID
-# Reads PROJECT_NAME from services.json or falls back to directory name.
 
 SLUG=$(basename "$(pwd)")
+NEON_API="https://console.neon.tech/api/v2"
 
 echo "=== Provisioning Postgres for: $SLUG ==="
 
 # --------------------------------------------------
-# 1. Create Neon database (skip if exists)
+# 1. Create Neon project (idempotent)
 # --------------------------------------------------
 echo "--- Creating Neon database: $SLUG ---"
-EXISTING_PROJECT=$(neonctl projects list --api-key "$NEON_API_KEY" --org-id "$NEON_ORG_ID" --output json \
-  | jq -r ".[] | select(.name == \"$SLUG\") | .id" 2>/dev/null || true)
 
-if [ -n "$EXISTING_PROJECT" ]; then
-  echo "Neon project '$SLUG' already exists (id: $EXISTING_PROJECT), fetching connection string."
-  DATABASE_URL=$(neonctl connection-string --api-key "$NEON_API_KEY" --project-id "$EXISTING_PROJECT" --org-id "$NEON_ORG_ID")
+EXISTING_PROJECT_ID=$(curl -s \
+  -H "Authorization: Bearer $NEON_API_KEY" \
+  "$NEON_API/projects?org_id=$NEON_ORG_ID&limit=100" \
+  | jq -r ".projects[] | select(.name == \"$SLUG\") | .id" | head -1)
+
+if [ -n "$EXISTING_PROJECT_ID" ]; then
+  echo "Neon project '$SLUG' already exists (id: $EXISTING_PROJECT_ID)"
+  PROJECT_ID="$EXISTING_PROJECT_ID"
 else
-  NEON_OUTPUT=$(neonctl projects create \
-    --api-key "$NEON_API_KEY" \
-    --name "$SLUG" \
-    --org-id "$NEON_ORG_ID" \
-    --output json)
-  DATABASE_URL=$(echo "$NEON_OUTPUT" | jq -r '.connection_uris[0].connection_uri')
+  echo "Creating new Neon project: $SLUG"
+  PROJECT_ID=$(curl -s -X POST "$NEON_API/projects" \
+    -H "Authorization: Bearer $NEON_API_KEY" \
+    -H "Content-Type: application/json" \
+    -d "{\"project\":{\"name\":\"$SLUG\",\"org_id\":\"$NEON_ORG_ID\"}}" \
+    | jq -r '.project.id')
+  echo "Created Neon project: $PROJECT_ID"
 fi
+
+# --------------------------------------------------
+# 2. Get connection string
+# --------------------------------------------------
+BRANCH_ID=$(curl -s \
+  -H "Authorization: Bearer $NEON_API_KEY" \
+  "$NEON_API/projects/$PROJECT_ID/branches" \
+  | jq -r '.branches[] | select(.default == true) | .id')
+
+DATABASE_URL=$(curl -s \
+  -H "Authorization: Bearer $NEON_API_KEY" \
+  "$NEON_API/projects/$PROJECT_ID/connection_uri?branch_id=$BRANCH_ID&database_name=neondb&role_name=neondb_owner&pooled=true" \
+  | jq -r '.uri')
+
 echo "Database URL captured (redacted): ${DATABASE_URL:0:30}..."
 
 # --------------------------------------------------
-# 2. Set DATABASE_URL on Vercel project
+# 3. Set DATABASE_URL on Vercel project
 # --------------------------------------------------
 echo "--- Setting DATABASE_URL on Vercel ---"
 
-# Remove existing env var if present (makes this idempotent)
 EXISTING_ENV_ID=$(curl -s -H "Authorization: Bearer $VERCEL_TOKEN" \
   "https://api.vercel.com/v9/projects/$SLUG/env?teamId=$VERCEL_TEAM_ID" \
   | jq -r '.envs[]? | select(.key == "DATABASE_URL") | .id' | head -1)
